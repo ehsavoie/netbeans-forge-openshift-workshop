@@ -1,0 +1,9 @@
+#Create Postgresql Driver module
+module add --name=org.postgresql --resources=/opt/jboss/wildfly/binaries/postgresql-9.4.1212.jar --dependencies=javax.api,javax.transaction.api
+#Add PostgreSQL JDBC Driver
+/subsystem=datasources/jdbc-driver=postgres:add(driver-name=postgres, driver-module-name=org.postgresql, driver-class-name=org.postgresql.Driver)
+#Add Datasource
+data-source add --name=NetBeansDS --jndi-name=java:jboss/datasources/NetBeansDS --driver-name=postgres --connection-url=jdbc:postgresql://${env.POSTGRES_SERVICE_HOST}:${env.POSTGRES_SERVICE_PORT:5432}/netbeans --user-name=netbeans --password=netbeans --valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker --exception-sorter-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter --validate-on-match=true --background-validation=true
+#deploy Application
+deploy --url=file:///opt/jboss/wildfly/binaries/netbeans-day.war --name=netbeans-day.war
+exit

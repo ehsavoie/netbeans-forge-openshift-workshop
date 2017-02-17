@@ -1,0 +1,75 @@
+Configurer le cluster:
+minishift config set openshift-version v1.4.1
+minishift config set memory 6000
+Démarrer le cluster:
+minishift start
+Créer le projet
+oc new-project netbeans
+Créer un service Postgresql
+oc new-app --name postgres  centos/postgresql-95-centos7 -e POSTGRESQL_USER=netbeans -e POSTGRESQL_DATABASE=netbeans -e POSTGRESQL_PASSWORD=netbeans
+oc describe service postgres
+
+Lancer NetBeans
+~/Applications/netbeans-8.2/bin/netbeans --userdir ~/netbeans-day/.netbeans
+
+Forge
+project-new --named netbeans-day --stack JAVA_EE_7 --top-level-package org.netbeans.day --final-name netbeans-day
+jpa-setup --db-type POSTGRES --data-source-name java:/NetBeansDS
+
+jpa-new-entity --named Book
+jpa-new-field --named title
+jpa-new-field --named description --length 2000
+jpa-new-field --named price --type java.lang.Float
+jpa-new-field --named nbOfPages --type java.lang.Integer
+jpa-new-field --named publicationDate --type java.util.Date --temporalType DATE
+
+java-new-enum --named Language --target-package org.netbeans.day.model
+java-add-enum-const --named FR
+java-add-enum-const --named EN
+cd ..
+cd Book.java
+jpa-new-field --named language --type org.netbeans.day.model.Language
+
+NetBeans
+Create Author.java with Netbeans
+Add:
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	@Column(name = "id", updatable = false, nullable = false)
+
+Forge
+cd ..
+cd Author.java
+jpa-new-field --named firstName
+
+cd ..
+cd Book.java
+jpa-new-field --named author --type org.netbeans.day.model.Author --relationship-type Many-to-One
+
+constraint-add --constraint NotNull --on-property title
+constraint-add --constraint Past --on-property publicationDate
+constraint-add --on-property description --constraint Size --max 3000
+
+NetBeans
+Montrer le validation.xml
+
+Forge Scaffold
+addon-install-from-git --url https://github.com/forge/angularjs-addon.git --coordinate org.jboss.forge.addon:angularjs
+scaffold-setup --provider AngularJS
+scaffold-generate --provider AngularJS  --targets org.netbeans.day.model.Author,org.netbeans.day.model.Book
+
+WildFly
+wget https://jdbc.postgresql.org/download/postgresql-9.4.1212.jar
+./jboss-cli.sh
+embed-server --server-config=standalone-full.xml
+
+module add --name=org.postgresql --slot=main --resources=/home/ehsavoie/netbeans-day/postgresql-9.4.1212.jar --dependencies=javax.api,javax.transaction.api
+/subsystem=datasources/jdbc-driver=postgresql:add(driver-name="postgresql",driver-module-name="org.postgresql",driver-class-name=org.postgresql.Driver)
+/subsystem=datasources/data-source=NetBeansDS:add(driver-name=postgresql, connection-url=jdbc:postgresql://localhost:5432/netbeans, user-name=netbeans, password=netbeans, jndi-name=java:/NetBeansDS)
+
+OpenShift
+oc new-build --binary --name=wildfly -l app=wildfly
+oc start-build wildfly --from-dir=. --follow
+
+oc deploy wildfly --latest -n netbeans
+oc describe service wildfly
+oc expose service wildfly
